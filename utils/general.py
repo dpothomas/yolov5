@@ -526,9 +526,13 @@ def compute_loss(p, targets, model):  # predictions, targets, model
 
             # Regression
             pxy = ps[:, :2].sigmoid() * 2. - 0.5
+            """
             pwh = (ps[:, 2:4].sigmoid() * 2) ** 2 * anchors[i]
             pbox = torch.cat((pxy, pwh), 1).to(device)  # predicted box
             iou = bbox_iou(pbox.T, tbox[i], x1y1x2y2=False, CIoU=True)  # iou(prediction, target)
+            """
+            # Loss is only x,y dependant
+            iou = torch.sigmoid(1 - (torch.norm((tbox[i][:, :2] - pxy), dim=1)))
             lbox += (1.0 - iou).mean()  # iou loss
 
             # Objectness
