@@ -494,8 +494,8 @@ class BCEBlurWithLogitsLoss(nn.Module):
 
 def compute_loss(p, targets, model):  # predictions, targets, model
     device = targets.device
-    lcls, lbox, lobj = torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device)
-    tcls, tbox, indices, anchors = build_targets(p, targets, model)  # targets
+    lcls, lbox, lobj, ltheta = torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device), torch.zeros(1, device=device)
+    tcls, tbox, ttheta, indices, anchors = build_targets(p, targets, model)  # targets
     h = model.hyp  # hyperparameters
 
     # Define criteria
@@ -526,14 +526,17 @@ def compute_loss(p, targets, model):  # predictions, targets, model
 
             # Regression
             pxy = ps[:, :2].sigmoid() * 2. - 0.5
-            """
+            ptheta = ps[:, 6].sigmoid()
+
             pwh = (ps[:, 2:4].sigmoid() * 2) ** 2 * anchors[i]
             pbox = torch.cat((pxy, pwh), 1).to(device)  # predicted box
             iou = bbox_iou(pbox.T, tbox[i], x1y1x2y2=False, CIoU=True)  # iou(prediction, target)
             """
-            # Loss is only x,y dependant
-            iou = torch.sigmoid(1 - (torch.norm((tbox[i][:, :2] - pxy), dim=1)))
             lbox += (1.0 - iou).mean()  # iou loss
+            """
+            # Obj loss is only x,y dependant
+            lbox += (torch.norm(tbox[i][:, :2] - pxy, dim=1)).mean()  # point loss
+            ltheta += (ttheta[i] - ptheta).abs().mean()  # theta loss
 
             # Objectness
             tobj[b, a, gj, gi] = (1.0 - model.gr) + model.gr * iou.detach().clamp(0).type(tobj.dtype)  # iou ratio
@@ -553,19 +556,20 @@ def compute_loss(p, targets, model):  # predictions, targets, model
     s = 3 / np  # output count scaling
     lbox *= h['box'] * s
     lobj *= h['obj'] * s * (1.4 if np == 4 else 1.)
+    ltheta *= 0.1 * s
     lcls *= h['cls'] * s
     bs = tobj.shape[0]  # batch size
 
-    loss = lbox + lobj + lcls
-    return loss * bs, torch.cat((lbox, lobj, lcls, loss)).detach()
+    loss = lbox + lobj + ltheta + lcls
+    return loss * bs, torch.cat((lbox, lobj, ltheta, lcls, loss)).detach()
 
 
 def build_targets(p, targets, model):
-    # Build targets for compute_loss(), input targets(image,class,x,y,w,h)
+    # Build targets for compute_loss(), input targets(image,class,x,y,w,h,θ)
     det = model.module.model[-1] if is_parallel(model) else model.model[-1]  # Detect() module
     na, nt = det.na, targets.shape[0]  # number of anchors, targets
-    tcls, tbox, indices, anch = [], [], [], []
-    gain = torch.ones(7, device=targets.device)  # normalized to gridspace gain
+    tcls, tbox, ttheta, indices, anch = [], [], [], [], []
+    gain = torch.ones(8, device=targets.device)  # normalized to gridspace gain
     ai = torch.arange(na, device=targets.device).float().view(na, 1).repeat(1, nt)  # same as .repeat_interleave(nt)
     targets = torch.cat((targets.repeat(na, 1, 1), ai[:, :, None]), 2)  # append anchor indices
 
@@ -607,14 +611,16 @@ def build_targets(p, targets, model):
         gij = (gxy - offsets).long()
         gi, gj = gij.T  # grid xy indices
 
+
         # Append
-        a = t[:, 6].long()  # anchor indices
+        a = t[:, 7].long()  # anchor indices
         indices.append((b, a, gj, gi))  # image, anchor, grid indices
         tbox.append(torch.cat((gxy - gij, gwh), 1))  # box
+        ttheta.append(t[:, 6])  # angle
         anch.append(anchors[a])  # anchors
         tcls.append(c)  # class
 
-    return tcls, tbox, indices, anch
+    return tcls, tbox, ttheta, indices, anch
 
 
 def non_max_suppression(prediction, conf_thres=0.1, iou_thres=0.6, merge=False, classes=None, agnostic=False):
