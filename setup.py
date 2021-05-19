@@ -17,7 +17,9 @@ def copy_to_module():
         shutil.rmtree(module_root_path)
 
     modules_moved = []
-    python_files = list(current_path.glob("**/*.py"))
+
+    python_files = [python_file for python_file in current_path.glob("**/*.py") if ".venv" not in python_file._parts]
+
     for python_file_path in python_files:
         python_file_path = python_file_path.relative_to(current_path)
         if str(python_file_path) == "setup.py" or python_file_path.stem == "__init__":
@@ -44,7 +46,7 @@ def copy_to_module():
 
     for python_file_path in new_python_files:
         data = []
-        with python_file_path.open("r") as f:
+        with python_file_path.open("r", encoding="utf8") as f:
             for line in f:
                 if line.startswith(strings_to_search_for):
                     lines_changed.append(line)
@@ -52,7 +54,7 @@ def copy_to_module():
                         if line.startswith(key):
                             line = line.replace(key, strings_to_replace[key], 1)
                 data.append(line)
-        with python_file_path.open("w") as f:
+        with python_file_path.open("w", encoding="utf8") as f:
             for line in data:
                 f.write(line)
 
