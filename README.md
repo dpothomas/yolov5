@@ -58,6 +58,18 @@ YOLOv5 🚀 is a family of object detection architectures and models pretrained 
 See the [YOLOv5 Docs](https://docs.ultralytics.com) for full documentation on training, testing and deployment.
 
 
+
+## <div align="center">Install as Module</div>
+To install yolov5 as a module you can either:
+- Get from git directly:
+  - `pip install git+https://github.com/robin-maillot/yolov5.git -f https://download.pytorch.org/whl/torch_stable.html`
+- Clone the repo and:
+  - `python setup.py install` from the root folder
+  - `pip install . -f https://download.pytorch.org/whl/torch_stable.html` from the root folder
+  - `pip install .` from the root folder (on windows only compatible with pip<1.9)
+
+
+
 ## <div align="center">Quick Start Examples</div>
 
 
