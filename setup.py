@@ -64,7 +64,7 @@ def copy_to_module():
                             print(line.rstrip())
                             print()
                 data.append(line)
-        with python_file_path.open("w") as f:
+        with python_file_path.open("w", encoding="utf8") as f:
             for line in data:
                 f.write(line)
 
