@@ -2,7 +2,6 @@
 
 import datetime
 import logging
-import math
 import os
 import platform
 import subprocess
@@ -11,6 +10,7 @@ from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
 
+import math
 import torch
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
@@ -22,7 +22,7 @@ try:
     import thop  # for FLOPs computation
 except ImportError:
     thop = None
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -64,7 +64,8 @@ def git_describe(path=Path(__file__).parent):  # path must be a directory
 def select_device(device='', batch_size=None):
     # device = 'cpu' or '0' or '0,1,2,3'
     s = f'YOLOv5 🚀 {git_describe() or date_modified()} torch {torch.__version__} '  # string
-    cpu = device.lower() == 'cpu'
+    device = str(device).strip().lower().replace('cuda:', '')  # to string, 'cuda:0' to '0'
+    cpu = device == 'cpu'
     if cpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # force torch.cuda.is_available() = False
     elif device:  # non-cpu device requested
@@ -84,11 +85,11 @@ def select_device(device='', batch_size=None):
     else:
         s += 'CPU\n'
 
-    logger.info(s.encode().decode('ascii', 'ignore') if platform.system() == 'Windows' else s)  # emoji-safe
+    LOGGER.info(s.encode().decode('ascii', 'ignore') if platform.system() == 'Windows' else s)  # emoji-safe
     return torch.device('cuda:0' if cuda else 'cpu')
 
 
-def time_synchronized():
+def time_sync():
     # pytorch-accurate time
     if torch.cuda.is_available():
         torch.cuda.synchronize()
@@ -117,12 +118,12 @@ def profile(x, ops, n=100, device=None):
             flops = 0
 
         for _ in range(n):
-            t[0] = time_synchronized()
+            t[0] = time_sync()
             y = m(x)
-            t[1] = time_synchronized()
+            t[1] = time_sync()
             try:
                 _ = y.sum().backward()
-                t[2] = time_synchronized()
+                t[2] = time_sync()
             except:  # no backward method
                 t[2] = float('nan')
             dtf += (t[1] - t[0]) * 1000 / n  # ms per op forward
@@ -230,7 +231,7 @@ def model_info(model, verbose=False, img_size=640):
     except (ImportError, Exception):
         fs = ''
 
-    logger.info(f"Model Summary: {len(list(model.modules()))} layers, {n_p} parameters, {n_g} gradients{fs}")
+    LOGGER.info(f"Model Summary: {len(list(model.modules()))} layers, {n_p} parameters, {n_g} gradients{fs}")
 
 
 def load_classifier(name='resnet101', n=2):
