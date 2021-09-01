@@ -1,0 +1,6 @@
+names:
+- Sperm
+nc: 1
+path: D:\Nanovare\data\kings_V2\kingsv2\yolo
+train: images/train
+val: images/val

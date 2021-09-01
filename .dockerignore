@@ -12,7 +12,7 @@ data/samples/*
 *.jpg
 
 # Neural Network weights -----------------------------------------------------------------------------------------------
-**/*.pt
+# **/*.pt
 **/*.pth
 **/*.onnx
 **/*.mlmodel
@@ -49,7 +49,7 @@ sdist/
 var/
 wheels/
 *.egg-info/
-wandb/
+# wandb/
 .installed.cfg
 *.egg
 

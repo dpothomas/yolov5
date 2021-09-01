@@ -36,7 +36,7 @@ class Loggers():
         self.keys = ['train/box_loss', 'train/obj_loss', 'train/cls_loss',  # train loss
                      'metrics/precision', 'metrics/recall', 'metrics/mAP_0.5', 'metrics/mAP_0.5:0.95',  # metrics
                      'val/box_loss', 'val/obj_loss', 'val/cls_loss',  # val loss
-                     'x/lr0', 'x/lr1', 'x/lr2']  # params
+                     'x/lr0', 'x/lr1', 'x/lr2', 'extra_metrics/count_error_0.3', 'extra_metrics/count_error_0.5']  # params
         for k in LOGGERS:
             setattr(self, k, None)  # init empty logger dictionary
         self.csv = True  # always log to csv
@@ -47,17 +47,10 @@ class Loggers():
             s = f"{prefix}run 'pip install wandb' to automatically track and visualize YOLOv5 🚀 runs (RECOMMENDED)"
             print(emojis(s))
 
-        # TensorBoard
-        s = self.save_dir
-        if 'tb' in self.include and not self.opt.evolve:
-            prefix = colorstr('TensorBoard: ')
-            self.logger.info(f"{prefix}Start with 'tensorboard --logdir {s.parent}', view at http://localhost:6006/")
-            self.tb = SummaryWriter(str(s))
-
         # W&B
         if wandb and 'wandb' in self.include:
             wandb_artifact_resume = isinstance(self.opt.resume, str) and self.opt.resume.startswith('wandb-artifact://')
-            run_id = torch.load(self.weights).get('wandb_id') if self.opt.resume and not wandb_artifact_resume else None
+            run_id = torch.load(self.weights).get('wandb_id')# if self.opt.resume and not wandb_artifact_resume else None
             self.opt.hyp = self.hyp  # add hyperparameters
             self.wandb = WandbLogger(self.opt, run_id)
         else:
@@ -72,10 +65,6 @@ class Loggers():
     def on_train_batch_end(self, ni, model, imgs, targets, paths, plots):
         # Callback runs on train batch end
         if plots:
-            if ni == 0:
-                with warnings.catch_warnings():
-                    warnings.simplefilter('ignore')  # suppress jit trace warning
-                    self.tb.add_graph(torch.jit.trace(de_parallel(model), imgs[0:1], strict=False), [])
             if ni < 3:
                 f = self.save_dir / f'train_batch{ni}.jpg'  # filename
                 Thread(target=plot_images, args=(imgs, targets, paths, f), daemon=True).start()
@@ -109,10 +98,6 @@ class Loggers():
             with open(file, 'a') as f:
                 f.write(s + ('%20.5g,' * n % tuple([epoch] + vals)).rstrip(',') + '\n')
 
-        if self.tb:
-            for k, v in x.items():
-                self.tb.add_scalar(k, v, epoch)
-
         if self.wandb:
             self.wandb.log(x)
             self.wandb.end_epoch(best_result=best_fitness == fi)
@@ -123,18 +108,12 @@ class Loggers():
             if ((epoch + 1) % self.opt.save_period == 0 and not final_epoch) and self.opt.save_period != -1:
                 self.wandb.log_model(last.parent, self.opt, epoch, fi, best_model=best_fitness == fi)
 
-    def on_train_end(self, last, best, plots, epoch):
+    def on_train_end(self, last, best, plots, epoch, extra_plots=[], extra_videos=[]):
         # Callback runs on training end
         if plots:
             plot_results(file=self.save_dir / 'results.csv')  # save results.png
         files = ['results.png', 'confusion_matrix.png', *[f'{x}_curve.png' for x in ('F1', 'PR', 'P', 'R')]]
         files = [(self.save_dir / f) for f in files if (self.save_dir / f).exists()]  # filter
-
-        if self.tb:
-            from PIL import Image
-            import numpy as np
-            for f in files:
-                self.tb.add_image(f.stem, np.asarray(Image.open(f)), epoch, dataformats='HWC')
 
         if self.wandb:
             self.wandb.log({"Results": [wandb.Image(str(f), caption=f.name) for f in files]})
@@ -142,4 +121,17 @@ class Loggers():
             wandb.log_artifact(str(best if best.exists() else last), type='model',
                                name='run_' + self.wandb.wandb_run.id + '_model',
                                aliases=['latest', 'best', 'stripped'])
+
+            for i, plot in enumerate(extra_plots):
+                self.wandb.log({f"extra_plots/plot_{i}": plot})
+
+            for i, output_video in enumerate(extra_videos):
+                self.wandb.log(
+                    {
+                        f"extra_videos/{output_video.name}": wandb.Video(
+                            str(output_video), fps=60, format="mp4"
+                        )
+                    }
+                )
+
             self.wandb.finish_run()

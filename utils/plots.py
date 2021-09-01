@@ -23,6 +23,7 @@ from utils.metrics import fitness
 matplotlib.rc('font', **{'size': 11})
 matplotlib.use('Agg')  # for writing to files only
 
+from collections import Counter
 
 class Colors:
     # Ultralytics color palette https://ultralytics.com/

@@ -282,6 +282,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
         # dataset.mosaic_border = [b - imgsz, -b]  # height, width borders
 
         mloss = torch.zeros(3, device=device)  # mean losses
+        extra_metrics = [0]
         if RANK != -1:
             train_loader.sampler.set_epoch(epoch)
         pbar = enumerate(train_loader)
@@ -315,6 +316,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
             # Forward
             with amp.autocast(enabled=cuda):
                 pred = model(imgs)  # forward
+
                 loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
                 if RANK != -1:
                     loss *= WORLD_SIZE  # gradient averaged between devices in DDP mode
@@ -342,6 +344,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                 callbacks.on_train_batch_end(ni, model, imgs, targets, paths, plots)
             # end batch ------------------------------------------------------------------------------------------------
 
+
         # Scheduler
         lr = [x['lr'] for x in optimizer.param_groups]  # for loggers
         scheduler.step()
@@ -352,7 +355,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
             ema.update_attr(model, include=['yaml', 'nc', 'hyp', 'names', 'stride', 'class_weights'])
             final_epoch = epoch + 1 == epochs
             if not noval or final_epoch:  # Calculate mAP
-                results, maps, _ = val.run(data_dict,
+                results, maps, _, extra_metrics, extra_plots, extra_video = val.run(data_dict,
                                            batch_size=batch_size // WORLD_SIZE * 2,
                                            imgsz=imgsz,
                                            model=ema.ema,
@@ -369,9 +372,8 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
             if fi > best_fitness:
                 best_fitness = fi
-            log_vals = list(mloss) + list(results) + lr
+            log_vals = list(mloss) + list(results) + lr + extra_metrics
             callbacks.on_fit_epoch_end(log_vals, epoch, best_fitness, fi)
-
             # Save model
             if (not nosave) or (final_epoch and not evolve):  # if save
                 ckpt = {'epoch': epoch,
@@ -382,6 +384,9 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                         'optimizer': optimizer.state_dict(),
                         'wandb_id': loggers.wandb.wandb_run.id if loggers.wandb else None}
 
+                print(f"loggers.wandb: {loggers.wandb}")
+                print(ckpt.get("wandb_id"))
+                print(last)
                 # Save last, best and delete
                 torch.save(ckpt, last)
                 if best_fitness == fi:
@@ -394,27 +399,28 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     if RANK in [-1, 0]:
         LOGGER.info(f'\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours.')
         if not evolve:
-            if is_coco:  # COCO dataset
-                for m in [last, best] if best.exists() else [last]:  # speed, mAP tests
-                    results, _, _ = val.run(data_dict,
-                                            batch_size=batch_size // WORLD_SIZE * 2,
-                                            imgsz=imgsz,
-                                            model=attempt_load(m, device).half(),
-                                            iou_thres=0.7,  # NMS IoU threshold for best pycocotools results
-                                            single_cls=single_cls,
-                                            dataloader=val_loader,
-                                            save_dir=save_dir,
-                                            save_json=True,
-                                            plots=False)
+            print(is_coco)
+            for m in [last, best] if best.exists() else [last]:  # speed, mAP tests
+                results, _, _, _, extra_plots, extra_videos = val.run(data_dict,
+                                        batch_size=batch_size // WORLD_SIZE * 2,
+                                        imgsz=imgsz,
+                                        model=attempt_load(m, device).half(),
+                                        iou_thres=0.7,  # NMS IoU threshold for best pycocotools results
+                                        single_cls=single_cls,
+                                        dataloader=val_loader,
+                                        save_dir=save_dir,
+                                        save_json=True,
+                                        plots=False,
+                                        run_aisa_plots=False)
             # Strip optimizers
             for f in last, best:
                 if f.exists():
                     strip_optimizer(f)  # strip optimizers
-        callbacks.on_train_end(last, best, plots, epoch)
+        callbacks.on_train_end(last, best, plots, epoch, extra_plots, extra_videos)
         LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}")
 
     torch.cuda.empty_cache()
-    return results
+    return results, best
 
 
 def parse_opt(known=False):
@@ -497,9 +503,10 @@ def main(opt):
 
     # Train
     if not opt.evolve:
-        train(opt.hyp, opt, device)
+        results, path_to_best_model = train(opt.hyp, opt, device)
         if WORLD_SIZE > 1 and RANK == 0:
             _ = [print('Destroying process group... ', end=''), dist.destroy_process_group(), print('Done.')]
+        return path_to_best_model
 
     # Evolve hyperparameters (optional)
     else:
@@ -594,7 +601,7 @@ def run(**kwargs):
     opt = parse_opt(True)
     for k, v in kwargs.items():
         setattr(opt, k, v)
-    main(opt)
+    return main(opt)
 
 
 if __name__ == "__main__":

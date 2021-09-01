@@ -1,0 +1,17 @@
+#command: python detect.py --source data/images/bus.jpg && echo {inputs.dataset}
+command: python thick_training_azure_wrapper.py yolov5s {inputs.train_dataset} {inputs.test_dataset} {inputs.test_video_dataset} --image-size 960 --epochs 300
+code:
+  local_path: .
+environment: "azureml:Ultralytics YOLOv5:2" # a pre-defined environment to run my code
+inputs:
+  train_dataset:
+    data: "azureml:Kings:2" # an Azure Machine Learning dataset
+    mode: download
+  test_dataset:
+    data: "azureml:MAST-Testing:3" # an Azure Machine Learning dataset
+    mode: download
+  test_video_dataset:
+    data: "azureml:MAST-Video:1" # an Azure Machine Learning dataset
+    mode: download
+compute:
+  target: "azureml:p100-1-low-2"
