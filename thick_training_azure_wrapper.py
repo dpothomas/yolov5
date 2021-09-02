@@ -64,6 +64,10 @@ def train(
         200,
         help="Number of epochs to train for.",
     ),
+    hyp: Path = typer.Option(
+        Path("data/hyps/hyp.scratch.yaml"),
+        help="Path to hyp file.",
+    ),
 ):
     import train
     import mojo_test
@@ -89,43 +93,29 @@ def train(
         raise Exception(f"{train_dataset_location} not supported as an dataset type.")
 
     print("Running training function...")
-    hyp_path = Path("mojo_hyp.yaml")
-    hyp_path = None
-    if hyp_path is not None and hyp_path.is_file():
-        path_to_best_model = train.run(
-            cfg=f"models/{yolo_model_version}.yaml",
-            data=f"{train_yaml_file_path}",
-            hyp=f"{hyp_path}",
-            project="test_training_results",
-            name=f"{yolo_model_version}-{image_size}-{hyp_path.stem}",
-            epochs=epochs,
-            batch_size=batch_size,
-            image_size=image_size,
-            workers=4,
-            entity="mojo-ia"
-        )
+    if os.name =="nt":
+        workers = 1
     else:
-        path_to_best_model = train.run(
-            cfg=f"models/{yolo_model_version}.yaml",
-            data=f"{train_yaml_file_path}",
-            # f"--hyp {root / 'hyp' / 'new_current.yaml'} "
-            project="test_training_results",
-            name=f"{yolo_model_version}-{image_size}",
-            epochs=epochs,
-            batch_size=batch_size,
-            image_size=image_size,
-            workers=4,
-            entity="mojo-ia"
-        )
+        workers = 4
+    path_to_best_model = train.run(
+        cfg=f"models/{yolo_model_version}.yaml",
+        data=f"{train_yaml_file_path}",
+        hyp=f"{hyp}",
+        project="test_training_results",
+        name=f"{yolo_model_version}-{image_size}-{hyp.stem}",
+        epochs=epochs,
+        batch_size=batch_size,
+        imgsz=image_size,
+        workers=workers,
+        entity="mojo-ia"
+    )
     print("Finished training function...")
     #### END OF TRAINING CODE ####
 
     #### TESTING ####
-    test_data_root_dir = Path(sys.argv[3])
-    data_root_dir_test_videos = Path(sys.argv[4])
 
     mojo_test_data = dict(
-        path=str(test_data_root_dir),
+        path=str(test_dataset_location),
         test="images/test",
         nc=1,
         names=["Sperm"],
@@ -144,7 +134,7 @@ def train(
         project="test_training_results",
         name=f"{yolo_model_version}-{image_size}",
         entity="mojo-ia",
-        test_video_root=data_root_dir_test_videos
+        test_video_root=test_video_dataset_location
     )
     print("Finished mojo testing function...")
 

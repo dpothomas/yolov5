@@ -234,9 +234,11 @@ def run(data,
         # Plot images
         if plots and batch_i < 3:
             f = save_dir / f'val_batch{batch_i}_labels.jpg'  # labels
-            Thread(target=plot_images, args=(img, targets, paths, f, names), daemon=True).start()
+            thread_1 = Thread(target=plot_images, args=(img, targets, paths, f, names), daemon=True)
             f = save_dir / f'val_batch{batch_i}_pred.jpg'  # predictions
-            Thread(target=plot_images, args=(img, output_to_target(out), paths, f, names), daemon=True).start()
+            thread_2 = Thread(target=plot_images, args=(img, output_to_target(out), paths, f, names), daemon=True)
+            thread_1.start()
+            thread_2.start()
 
     # Compute statistics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
@@ -247,7 +249,6 @@ def run(data,
         nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class
     else:
         nt = torch.zeros(1)
-
     # Print results
     pf = '%20s' + '%11i' * 2 + '%11.3g' * 4  # print format
     print(pf % ('all', seen, nt.sum(), mp, mr, map50, map))

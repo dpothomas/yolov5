@@ -1,5 +1,5 @@
 #command: python detect.py --source data/images/bus.jpg && echo {inputs.dataset}
-command: python thick_training_azure_wrapper.py yolov5s {inputs.train_dataset} {inputs.test_dataset} {inputs.test_video_dataset} --image-size 960 --epochs 300
+command: python thick_training_azure_wrapper.py yolov5m {inputs.train_dataset} {inputs.test_dataset} {inputs.test_video_dataset} --image-size 640 --epochs 150
 code:
   local_path: .
 environment: "azureml:Ultralytics YOLOv5:2" # a pre-defined environment to run my code

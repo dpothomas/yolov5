@@ -83,26 +83,27 @@ def mojo_test(data,
     run_id = torch.load(weights[0]).get('wandb_id')
 
     wandb_run = wandb.init(id=run_id,
-                           project=project,
-                           entity=entity,
-                           resume='allow',
-                           allow_val_change=True)
+                          project=project,
+                          entity=entity,
+                          resume='allow',
+                          allow_val_change=True)
 
 
-    results, _, _, _, _, _ = val.run(data,
+    results, maps, t, extra_metrics, _, _ = val.run(data,
         weights=weights,  # model.pt path(s)
-        batch_size=1,  # batch size
+        batch_size=batch_size,  # batch size
         imgsz=imgsz,  # inference size (pixels)
         conf_thres=0.001,  # confidence threshold
         iou_thres=0.6,  # NMS IoU threshold
         task='test',  # train, val, test, speed or study
         )
-    print(results)
-    exit()
+    print(results, maps, t, extra_metrics)
+
     wandb_run.log({f"mojo_test/test_metrics/mp": results[0]})
     wandb_run.log({f"mojo_test/test_metrics/mr": results[1]})
     wandb_run.log({f"mojo_test/test_metrics/map50": results[2]})
     wandb_run.log({f"mojo_test/test_metrics/map": results[3]})
+    wandb_run.log({f"mojo_test/test_metrics/inference_time": np.sum(t)})
 
     # Load model
     model = attempt_load(weights, map_location=device)  # load FP32 model
@@ -114,7 +115,7 @@ def mojo_test(data,
     if half:
         model.half()
 
-    def video_prediction_function(frame_array, conf_thres=0.01):
+    def video_prediction_function(frame_array, conf_thres=0.001):
         n_frames = len(frame_array)
         preds = []
         for i in range(0, n_frames, batch_size):
@@ -199,7 +200,7 @@ def lol():
     weights = [str(Path("../modified_yaml.pt").resolve())]
     mojo_test(mojo_test_yaml_file_path,
               weights=weights,  # model.pt path(s)
-              batch_size=16,  # batch size
+              batch_size=1,  # batch size
               imgsz=960,  # inference size (pixels)
               device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
               save_txt=False,  # save results to *.txt
@@ -211,8 +212,8 @@ def lol():
               )
 
 if __name__ == "__main__":
-    lol()
-    exit()
+    #lol()
+    #exit()
 
     #weights = Path(r"D:\Nanovare\dev\yolov5\wandb_mod_tests\exp\weights\best.pt")
     opt = parse_opt()
