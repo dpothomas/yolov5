@@ -1,10 +1,13 @@
-# YOLOv5 image augmentation functions
+# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
+"""
+Image augmentation functions
+"""
 
 import logging
+import math
 import random
 
 import cv2
-import math
 import numpy as np
 
 from utils.general import colorstr, segment2box, resample_segments, check_version
@@ -20,8 +23,8 @@ class Albumentations:
             check_version(A.__version__, '1.0.3')  # version requirement
 
             self.transform = A.Compose([
-                A.Blur(p=0.1),
-                A.MedianBlur(p=0.1),
+                #A.Blur(p=0.1),
+                #A.MedianBlur(p=0.1),
                 A.ToGray(p=0.01)],
                 bbox_params=A.BboxParams(format='yolo', label_fields=['class_labels']))
 

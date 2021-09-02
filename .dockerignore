@@ -8,11 +8,11 @@ coco
 storage.googleapis.com
 
 data/samples/*
-**/results*.txt
+**/results*.csv
 *.jpg
 
 # Neural Network weights -----------------------------------------------------------------------------------------------
-**/*.pt
+# **/*.pt
 **/*.pth
 **/*.onnx
 **/*.mlmodel
@@ -49,7 +49,7 @@ sdist/
 var/
 wheels/
 *.egg-info/
-wandb/
+# wandb/
 .installed.cfg
 *.egg
 

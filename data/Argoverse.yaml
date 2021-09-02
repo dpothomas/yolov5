@@ -1,4 +1,4 @@
-# YOLOv5 🚀 by Ultralytics https://ultralytics.com, licensed under GNU GPL v3.0
+# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
 # Argoverse-HD dataset (ring-front-center camera) http://www.cs.cmu.edu/~mengtial/proj/streaming/
 # Example usage: python train.py --data Argoverse.yaml
 # parent
@@ -15,7 +15,7 @@ test: Argoverse-1.1/images/test/  # test images (optional) https://eval.ai/web/c
 
 # Classes
 nc: 8  # number of classes
-names: [ 'person',  'bicycle',  'car',  'motorcycle',  'bus',  'truck',  'traffic_light',  'stop_sign' ]  # class names
+names: ['person',  'bicycle',  'car',  'motorcycle',  'bus',  'truck',  'traffic_light',  'stop_sign']  # class names
 
 
 # Download script/URL (optional) ---------------------------------------------------------------------------------------
