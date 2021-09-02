@@ -20,6 +20,10 @@
 *.data
 *.json
 
+# Mojo files
+*.whl
+job.yml
+
 #package
 yolov5/*
 
