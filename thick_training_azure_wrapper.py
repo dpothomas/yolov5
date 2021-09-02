@@ -72,6 +72,10 @@ def train(
     import train
     import mojo_test
 
+    # Some values shared between train/test scripts
+    entity = "mojo-ia"
+    project = "test_training_results"
+
     #### TRAINING CODE ####
     # Create data.yaml is a root path is given (hard code extra values for now).
     if train_dataset_location.is_dir():
@@ -101,13 +105,13 @@ def train(
         cfg=f"models/{yolo_model_version}.yaml",
         data=f"{train_yaml_file_path}",
         hyp=f"{hyp}",
-        project="test_training_results",
+        project=project,
         name=f"{yolo_model_version}-{image_size}-{hyp.stem}",
         epochs=epochs,
         batch_size=batch_size,
         imgsz=image_size,
         workers=workers,
-        entity="mojo-ia"
+        entity=entity
     )
     print("Finished training function...")
     #### END OF TRAINING CODE ####
@@ -131,9 +135,9 @@ def train(
         [path_to_best_model],
         batch_size=batch_size,
         imgsz=image_size,
-        project="test_training_results",
+        project=project,
         name=f"{yolo_model_version}-{image_size}",
-        entity="mojo-ia",
+        entity=entity,
         test_video_root=test_video_dataset_location
     )
     print("Finished mojo testing function...")
