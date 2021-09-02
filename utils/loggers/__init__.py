@@ -47,6 +47,13 @@ class Loggers():
             s = f"{prefix}run 'pip install wandb' to automatically track and visualize YOLOv5 🚀 runs (RECOMMENDED)"
             print(emojis(s))
 
+        # TensorBoard
+        s = self.save_dir
+        if 'tb' in self.include and not self.opt.evolve:
+            prefix = colorstr('TensorBoard: ')
+            self.logger.info(f"{prefix}Start with 'tensorboard --logdir {s.parent}', view at http://localhost:6006/")
+            self.tb = SummaryWriter(str(s))
+
         # W&B
         if wandb and 'wandb' in self.include:
             wandb_artifact_resume = isinstance(self.opt.resume, str) and self.opt.resume.startswith('wandb-artifact://')
@@ -62,9 +69,14 @@ class Loggers():
         if self.wandb:
             self.wandb.log({"Labels": [wandb.Image(str(x), caption=x.name) for x in paths]})
 
-    def on_train_batch_end(self, ni, model, imgs, targets, paths, plots):
+    def on_train_batch_end(self, ni, model, imgs, targets, paths, plots, sync_bn):
         # Callback runs on train batch end
         if plots:
+            if ni == 0:
+                if not sync_bn:  # tb.add_graph() --sync known issue https://github.com/ultralytics/yolov5/issues/3754
+                    with warnings.catch_warnings():
+                        warnings.simplefilter('ignore')  # suppress jit trace warning
+                        self.tb.add_graph(torch.jit.trace(de_parallel(model), imgs[0:1], strict=False), [])
             if ni < 3:
                 f = self.save_dir / f'train_batch{ni}.jpg'  # filename
                 Thread(target=plot_images, args=(imgs, targets, paths, f), daemon=True).start()
@@ -98,6 +110,10 @@ class Loggers():
             with open(file, 'a') as f:
                 f.write(s + ('%20.5g,' * n % tuple([epoch] + vals)).rstrip(',') + '\n')
 
+        if self.tb:
+            for k, v in x.items():
+                self.tb.add_scalar(k, v, epoch)
+
         if self.wandb:
             self.wandb.log(x)
             self.wandb.end_epoch(best_result=best_fitness == fi)
@@ -115,23 +131,31 @@ class Loggers():
         files = ['results.png', 'confusion_matrix.png', *[f'{x}_curve.png' for x in ('F1', 'PR', 'P', 'R')]]
         files = [(self.save_dir / f) for f in files if (self.save_dir / f).exists()]  # filter
 
+        if self.tb:
+            import cv2
+            for f in files:
+                self.tb.add_image(f.stem, cv2.imread(str(f))[..., ::-1], epoch, dataformats='HWC')
+
         if self.wandb:
             self.wandb.log({"Results": [wandb.Image(str(f), caption=f.name) for f in files]})
             # Calling wandb.log. TODO: Refactor this into WandbLogger.log_model
-            wandb.log_artifact(str(best if best.exists() else last), type='model',
-                               name='run_' + self.wandb.wandb_run.id + '_model',
-                               aliases=['latest', 'best', 'stripped'])
+            if not self.opt.evolve:
+                wandb.log_artifact(str(best if best.exists() else last), type='model',
+                                   name='run_' + self.wandb.wandb_run.id + '_model',
+                                   aliases=['latest', 'best', 'stripped'])
 
-            for i, plot in enumerate(extra_plots):
-                self.wandb.log({f"extra_plots/plot_{i}": plot})
+                for i, plot in enumerate(extra_plots):
+                    self.wandb.log({f"extra_plots/plot_{i}": plot})
 
-            for i, output_video in enumerate(extra_videos):
-                self.wandb.log(
-                    {
-                        f"extra_videos/{output_video.name}": wandb.Video(
-                            str(output_video), fps=60, format="mp4"
-                        )
-                    }
-                )
-
-            self.wandb.finish_run()
+                for i, output_video in enumerate(extra_videos):
+                    self.wandb.log(
+                        {
+                            f"extra_videos/{output_video.name}": wandb.Video(
+                                str(output_video), fps=60, format="mp4"
+                            )
+                        }
+                    )
+                self.wandb.finish_run()
+            else:
+                self.wandb.finish_run()
+                self.wandb = WandbLogger(self.opt)

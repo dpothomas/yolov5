@@ -21,9 +21,9 @@ sys.path.append(FILE.parents[0].as_posix())  # add yolov5/ to path
 
 from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages
-from utils.general import check_img_size, check_requirements, check_imshow, colorstr, non_max_suppression, \
+from utils.general import check_img_size, check_requirements, check_imshow, colorstr, is_ascii, non_max_suppression, \
     apply_classifier, scale_coords, xyxy2xywh, strip_optimizer, set_logging, increment_path, save_one_box
-from utils.plots import colors, plot_one_box
+from utils.plots import Annotator, colors
 from utils.torch_utils import select_device, load_classifier, time_sync
 
 
@@ -52,7 +52,6 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
         hide_labels=False,  # hide labels
         hide_conf=False,  # hide confidences
         half=False,  # use FP16 half-precision inference
-        tfl_int8=False,  # INT8 quantized TFLite model
         ):
     save_img = not nosave and not source.endswith('.txt')  # save inference images
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
@@ -104,7 +103,9 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
             interpreter.allocate_tensors()  # allocate
             input_details = interpreter.get_input_details()  # inputs
             output_details = interpreter.get_output_details()  # outputs
+            int8 = input_details[0]['dtype'] == np.uint8  # is TFLite quantized uint8 model
     imgsz = check_img_size(imgsz, s=stride)  # check image size
+    ascii = is_ascii(names)  # names are ascii (use PIL for UTF-8)
 
     # Dataloader
     if webcam:
@@ -145,15 +146,15 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
             elif saved_model:
                 pred = model(imn, training=False).numpy()
             elif tflite:
-                if tfl_int8:
+                if int8:
                     scale, zero_point = input_details[0]['quantization']
-                    imn = (imn / scale + zero_point).astype(np.uint8)
+                    imn = (imn / scale + zero_point).astype(np.uint8)  # de-scale
                 interpreter.set_tensor(input_details[0]['index'], imn)
                 interpreter.invoke()
                 pred = interpreter.get_tensor(output_details[0]['index'])
-                if tfl_int8:
+                if int8:
                     scale, zero_point = output_details[0]['quantization']
-                    pred = (pred.astype(np.float32) - zero_point) * scale
+                    pred = (pred.astype(np.float32) - zero_point) * scale  # re-scale
             pred[..., 0] *= imgsz[1]  # x
             pred[..., 1] *= imgsz[0]  # y
             pred[..., 2] *= imgsz[1]  # w
@@ -181,6 +182,7 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
             s += '%gx%g ' % img.shape[2:]  # print string
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
             imc = im0.copy() if save_crop else im0  # for save_crop
+            annotator = Annotator(im0, line_width=line_thickness, pil=not ascii)
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
@@ -201,7 +203,7 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
                     if save_img or save_crop or view_img:  # Add bbox to image
                         c = int(cls)  # integer class
                         label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
-                        im0 = plot_one_box(xyxy, im0, label=label, color=colors(c, True), line_width=line_thickness)
+                        annotator.box_label(xyxy, label, color=colors(c, True))
                         if save_crop:
                             save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
 
@@ -209,6 +211,7 @@ def run(weights='yolov5s.pt',  # model.pt path(s)
             print(f'{s}Done. ({t2 - t1:.3f}s)')
 
             # Stream results
+            im0 = annotator.result()
             if view_img:
                 cv2.imshow(str(p), im0)
                 cv2.waitKey(1)  # 1 millisecond
@@ -268,7 +271,6 @@ def parse_opt():
     parser.add_argument('--hide-labels', default=False, action='store_true', help='hide labels')
     parser.add_argument('--hide-conf', default=False, action='store_true', help='hide confidences')
     parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')
-    parser.add_argument('--tfl-int8', action='store_true', help='INT8 quantized TFLite model')
     opt = parser.parse_args()
     opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
     return opt
