@@ -7,8 +7,18 @@ import subprocess
 # Code in submitted run
 try:
     from azureml.core import Run
-except:
+except ModuleNotFoundError:
     pass
+
+def _find_module_wheel_path(module_name):
+    module_name = module_name.replace("-", "_")
+    module_wheel_paths = list(Path(".").rglob(f"**/{module_name}*.whl"))
+    if len(module_wheel_paths) == 1:
+        return module_wheel_paths[0]
+    elif len(module_wheel_paths) == 0:
+        raise Exception(f"Cannot find wheel associated with package: {module_name}")
+    else:
+        raise Exception(f"Found several wheels associated with package: {module_name} ({module_wheel_paths})")
 
 
 def _setup():
@@ -24,8 +34,19 @@ def _setup():
     # subprocess.run(["pip", "show", "wandb"])
     # subprocess.run(["pip", "install", "wandb==0.11.2"])
     # subprocess.run(["pip", "show", "wandb"])
-    subprocess.run(["pip", "install", "typer"])
-    subprocess.run(["pip", "install", "aisa_utils-1.0.1-py3-none-any.whl"])
+
+    # Install typer
+    try:
+        import typer
+    except ModuleNotFoundError:
+        subprocess.run(["pip", "install", "typer"])
+
+    # Install aisa utils
+    try:
+        import aisa_utils
+    except ModuleNotFoundError:
+        aisa_utils_wheel_path = _find_module_wheel_path
+        subprocess.run(["pip", "install", f"{aisa_utils_wheel_path}"])
 
 
 _setup()
