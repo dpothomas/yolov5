@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 import yaml
 import os
@@ -9,6 +8,7 @@ try:
     from azureml.core import Run
 except ModuleNotFoundError:
     pass
+
 
 def _find_module_wheel_path(module_name):
     module_name = module_name.replace("-", "_")
@@ -45,7 +45,7 @@ def _setup():
     try:
         import aisa_utils
     except ModuleNotFoundError:
-        aisa_utils_wheel_path = _find_module_wheel_path
+        aisa_utils_wheel_path = _find_module_wheel_path("aisa_utils")
         subprocess.run(["pip", "install", f"{aisa_utils_wheel_path}"])
 
 

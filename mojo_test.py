@@ -16,20 +16,15 @@ import wandb
 
 import numpy as np
 import torch
-from tqdm import tqdm
 from utils.general import xyxy2xywhn, scale_coords
 
 FILE = Path(__file__).absolute()
 sys.path.append(FILE.parents[0].as_posix())  # add yolov5/ to path
 
 from models.experimental import attempt_load
-from utils.datasets import create_dataloader
-from utils.general import check_dataset, check_file, check_img_size, check_requirements, \
+from utils.general import check_dataset, check_file, check_img_size, \
     non_max_suppression, set_logging, increment_path, colorstr
-from utils.metrics import ConfusionMatrix
-from utils.torch_utils import select_device, time_sync
-from utils.loggers import Loggers
-
+from utils.torch_utils import select_device
 import val
 
 from aisa_utils.dl_utils.utils import plot_object_count_difference_ridgeline, make_video_results
@@ -88,7 +83,6 @@ def mojo_test(data,
                           resume='allow',
                           allow_val_change=True)
 
-
     results, maps, t, extra_metrics, _, _ = val.run(data,
         weights=weights,  # model.pt path(s)
         batch_size=batch_size,  # batch size
@@ -97,13 +91,13 @@ def mojo_test(data,
         iou_thres=0.6,  # NMS IoU threshold
         task='test',  # train, val, test, speed or study
         )
-    print(results, maps, t, extra_metrics)
-
+    total_inference_time = np.sum(t)
+    print(f"total_inference_time={total_inference_time:.1f}ms")
     wandb_run.log({f"mojo_test/test_metrics/mp": results[0]})
     wandb_run.log({f"mojo_test/test_metrics/mr": results[1]})
     wandb_run.log({f"mojo_test/test_metrics/map50": results[2]})
     wandb_run.log({f"mojo_test/test_metrics/map": results[3]})
-    wandb_run.log({f"mojo_test/test_metrics/inference_time": np.sum(t)})
+    wandb_run.log({f"mojo_test/test_metrics/inference_time": total_inference_time})
 
     # Load model
     model = attempt_load(weights, map_location=device)  # load FP32 model
@@ -190,31 +184,10 @@ def parse_opt():
 def main(opt):
     set_logging()
     print(colorstr('mojo test: ') + ', '.join(f'{k}={v}' for k, v in vars(opt).items()))
-
     mojo_test(**vars(opt))
 
 
-def lol():
-    mojo_test_yaml_file_path = Path("test_data.yaml")
-    weights = [str(Path("../best.pt").resolve())]
-    weights = [str(Path("../modified_yaml.pt").resolve())]
-    mojo_test(mojo_test_yaml_file_path,
-              weights=weights,  # model.pt path(s)
-              batch_size=1,  # batch size
-              imgsz=960,  # inference size (pixels)
-              device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
-              save_txt=False,  # save results to *.txt
-              project='test_training_results',  # save to project/name
-              name='yolov5s-960',  # save to project/name
-              exist_ok=False,  # existing project/name ok, do not increment
-              entity="mojo-ia",
-              test_video_root=str(Path(r"D:\Nanovare\data\test_videos"))
-              )
-
 if __name__ == "__main__":
-    #lol()
-    #exit()
-
     #weights = Path(r"D:\Nanovare\dev\yolov5\wandb_mod_tests\exp\weights\best.pt")
     opt = parse_opt()
     main(opt)
