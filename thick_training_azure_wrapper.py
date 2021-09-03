@@ -3,6 +3,9 @@ import yaml
 import os
 from pprint import pprint
 import subprocess
+
+import typer
+
 # Code in submitted run
 try:
     from azureml.core import Run
@@ -30,17 +33,6 @@ def _setup():
         # WANDB-API-KEY2 was created in Azure KeyVault
         os.environ['WANDB_API_KEY'] = secret_value
 
-    # subprocess.run(["ls"])
-    # subprocess.run(["pip", "show", "wandb"])
-    # subprocess.run(["pip", "install", "wandb==0.11.2"])
-    # subprocess.run(["pip", "show", "wandb"])
-
-    # Install typer
-    try:
-        import typer
-    except ModuleNotFoundError:
-        subprocess.run(["pip", "install", "typer"])
-
     # Install aisa utils
     try:
         import aisa_utils
@@ -50,7 +42,6 @@ def _setup():
 
 
 _setup()
-import typer
 # CLI app
 app = typer.Typer(add_completion=True)
 
