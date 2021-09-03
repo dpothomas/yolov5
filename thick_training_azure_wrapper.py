@@ -124,6 +124,7 @@ def train(
         workers = 4
     path_to_best_model = train.run(
         cfg=f"models/{yolo_model_version}.yaml",
+        weights=f"{yolo_model_version}.pt",
         data=f"{train_yaml_file_path}",
         hyp=f"{hyp}",
         project=project,

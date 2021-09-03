@@ -19,7 +19,7 @@
 *.avi
 *.data
 *.json
-
+*.ttf
 # Mojo files
 *.whl
 job.yml
@@ -58,7 +58,7 @@ VOC/
 
 # Neural Network weights -----------------------------------------------------------------------------------------------
 *.weights
-# *.pt
+*.pt
 *.onnx
 *.mlmodel
 *.torchscript
