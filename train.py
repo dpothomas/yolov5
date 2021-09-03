@@ -377,9 +377,6 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                         'optimizer': optimizer.state_dict(),
                         'wandb_id': loggers.wandb.wandb_run.id if loggers.wandb else None}
 
-                print(f"loggers.wandb: {loggers.wandb}")
-                print(ckpt.get("wandb_id"))
-                print(last)
                 # Save last, best and delete
                 torch.save(ckpt, last)
                 if best_fitness == fi:
