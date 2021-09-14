@@ -27,7 +27,7 @@ from utils.general import check_dataset, check_file, check_img_size, \
 from utils.torch_utils import select_device
 import val
 
-from aisa_utils.dl_utils.utils import plot_object_count_difference_ridgeline, make_video_results
+from aisa_utils.dl_utils.utils import plot_object_count_difference_ridgeline, make_video_results, plot_object_count_difference_line
 
 
 def get_images_and_labels(data):
@@ -109,7 +109,7 @@ def mojo_test(data,
     if half:
         model.half()
 
-    def video_prediction_function(frame_array, conf_thres=0.001):
+    def video_prediction_function(frame_array, iou_thres_nms=0.45, conf_thres_nms=0.001):
         n_frames = len(frame_array)
         preds = []
         for i in range(0, n_frames, batch_size):
@@ -131,7 +131,7 @@ def mojo_test(data,
             # Inference
             pred = model(img, augment=False)[0]
             # Apply NMS
-            pred = non_max_suppression(pred, conf_thres=conf_thres)
+            pred = non_max_suppression(pred, iou_thres=iou_thres_nms, conf_thres=conf_thres_nms)
             _ = []
 
             for j, det in enumerate(pred):
@@ -141,10 +141,19 @@ def mojo_test(data,
                 _.append(det)
             preds += _
         return preds
+
     extra_plots = dict()
-    preds = video_prediction_function(images)
+    preds_iou_thres = dict()
+    for iout in [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65]:
+        preds_iou_thres[iout] = video_prediction_function(images, iou_thres_nms=iout)
+    fig_line = plot_object_count_difference_line(labels, preds_iou_thres)
+
+    preds = preds_iou_thres[0.45]
     fig, suggested_threshold = plot_object_count_difference_ridgeline(labels, preds)
+
     extra_plots["object_count_difference"] = fig
+    extra_plots["object_count_difference_continuous"] = fig_line
+
     print(f"suggested_threshold={suggested_threshold}")
     for plot_key in extra_plots:
         wandb_run.log({f"mojo_test/extra_plots/{plot_key}": extra_plots[plot_key]})
@@ -172,7 +181,7 @@ def parse_opt():
     parser.add_argument('--batch-size', type=int, default=32, help='batch size')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--project', default='runs/val', help='save to project/name')
+    parser.add_argument('--project', default='runs_test', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--entity', default=None, help='W&B entity')
