@@ -75,13 +75,13 @@ def mojo_test(data,
     # Directories
     save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
-    run_id = torch.load(weights[0]).get('wandb_id')
+    # run_id = torch.load(weights[0]).get('wandb_id')
 
-    wandb_run = wandb.init(id=run_id,
-                          project=project,
-                          entity=entity,
-                          resume='allow',
-                          allow_val_change=True)
+    # wandb_run = wandb.init(id=run_id,
+    #                       project=project,
+    #                       entity=entity,
+    #                       resume='allow',
+    #                       allow_val_change=True)
 
     results, maps, t, extra_metrics, _, _ = val.run(data,
         weights=weights,  # model.pt path(s)
@@ -93,11 +93,11 @@ def mojo_test(data,
         )
     total_inference_time = np.sum(t)
     print(f"total_inference_time={total_inference_time:.1f}ms")
-    wandb_run.log({f"mojo_test/test_metrics/mp": results[0]})
-    wandb_run.log({f"mojo_test/test_metrics/mr": results[1]})
-    wandb_run.log({f"mojo_test/test_metrics/map50": results[2]})
-    wandb_run.log({f"mojo_test/test_metrics/map": results[3]})
-    wandb_run.log({f"mojo_test/test_metrics/inference_time": total_inference_time})
+    # wandb_run.log({f"mojo_test/test_metrics/mp": results[0]})
+    # wandb_run.log({f"mojo_test/test_metrics/mr": results[1]})
+    # wandb_run.log({f"mojo_test/test_metrics/map50": results[2]})
+    # wandb_run.log({f"mojo_test/test_metrics/map": results[3]})
+    # wandb_run.log({f"mojo_test/test_metrics/inference_time": total_inference_time})
 
     # Load model
     model = attempt_load(weights, map_location=device)  # load FP32 model
@@ -146,21 +146,21 @@ def mojo_test(data,
     fig, suggested_threshold = plot_object_count_difference_ridgeline(labels, preds)
     extra_plots["object_count_difference"] = fig
     print(f"suggested_threshold={suggested_threshold}")
-    for plot_key in extra_plots:
-        wandb_run.log({f"mojo_test/extra_plots/{plot_key}": extra_plots[plot_key]})
-
-    if test_video_root:
-        for video_path in Path(test_video_root).rglob("*.avi"):
-            output_video_path, jitter_plot = make_video_results(video_path, lambda x: video_prediction_function(x, suggested_threshold))
-
-            wandb_run.log(
-                {
-                    f"mojo_test/extra_videos/{output_video_path.name}": wandb.Video(
-                        str(output_video_path), fps=60, format="mp4"
-                    )
-                }
-            )
-            wandb_run.log({f"mojo_test/extra_plots/{output_video_path.name}_jitter": jitter_plot})
+    # for plot_key in extra_plots:
+    #     wandb_run.log({f"mojo_test/extra_plots/{plot_key}": extra_plots[plot_key]})
+    #
+    # if test_video_root:
+    #     for video_path in Path(test_video_root).rglob("*.avi"):
+    #         output_video_path, jitter_plot = make_video_results(video_path, lambda x: video_prediction_function(x, suggested_threshold))
+    #
+    #         wandb_run.log(
+    #             {
+    #                 f"mojo_test/extra_videos/{output_video_path.name}": wandb.Video(
+    #                     str(output_video_path), fps=60, format="mp4"
+    #                 )
+    #             }
+    #         )
+    #         wandb_run.log({f"mojo_test/extra_plots/{output_video_path.name}_jitter": jitter_plot})
 
     return None
 
@@ -177,7 +177,7 @@ def parse_opt():
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--entity', default=None, help='W&B entity')
     opt = parser.parse_args()
-    opt.data = check_file(opt.data)  # check file
+    opt.data = opt.data  # check file
     return opt
 
 
