@@ -3,7 +3,7 @@ import yaml
 import os
 from pprint import pprint
 import subprocess
-
+import
 import typer
 
 # Code in submitted run
@@ -81,12 +81,15 @@ def train(
         help="Path to hyp file.",
     ),
 ):
-    import train
-    import mojo_test
+    try:
+        import train
+        import mojo_test
+    except ImportError as e:
+        print(f"Please install aisa_utils package from Nanovare SAS, Import error: \n{e}")
 
     # Some values shared between train/test scripts
     entity = "mojo-ia"
-    project = "test_training_results"
+    project = "project_name"
 
     #### TRAINING CODE ####
     # Create data.yaml is a root path is given (hard code extra values for now).
@@ -124,7 +127,8 @@ def train(
         batch_size=batch_size,
         imgsz=image_size,
         workers=workers,
-        entity=entity
+        entity=entity,
+        patience=100
     )
     print("Finished training function...")
     #### END OF TRAINING CODE ####
