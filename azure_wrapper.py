@@ -3,7 +3,6 @@ import yaml
 import os
 from pprint import pprint
 import subprocess
-import
 import typer
 
 # Code in submitted run
@@ -89,7 +88,7 @@ def train(
 
     # Some values shared between train/test scripts
     entity = "mojo-ia"
-    project = "project_name"
+    project = "test_training_results"
 
     #### TRAINING CODE ####
     # Create data.yaml is a root path is given (hard code extra values for now).
@@ -112,10 +111,11 @@ def train(
         raise Exception(f"{train_dataset_location} not supported as an dataset type.")
 
     print("Running training function...")
-    if os.name =="nt":
+    if os.name == "nt":
         workers = 1
     else:
         workers = 4
+
     path_to_best_model = train.run(
         cfg=f"models/{yolo_model_version}.yaml",
         weights=f"{yolo_model_version}.pt",
