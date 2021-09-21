@@ -20,8 +20,9 @@
 *.data
 *.json
 *.ttf
+
 # Mojo files
-# *.whl
+*.whl
 job.yml
 
 #package

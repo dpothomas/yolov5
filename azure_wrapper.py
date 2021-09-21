@@ -80,11 +80,8 @@ def train(
         help="Path to hyp file.",
     ),
 ):
-    try:
-        import train
-        import mojo_test
-    except ImportError as e:
-        print(f"Please install aisa_utils package from Nanovare SAS, Import error: \n{e}")
+    import train
+    import mojo_test
 
     # Some values shared between train/test scripts
     entity = "mojo-ia"
