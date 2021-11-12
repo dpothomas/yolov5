@@ -31,37 +31,7 @@ def _setup():
         os.getenv("AZUREML_ARM_RESOURCEGROUP") is not None
     ):  # checking if we are in Azure, unless you have really weird local env variables
         run = Run.get_context()
-        secret_value = run.get_secret(name="WANDB-BOT-API-KEY")  # Secret called
-        # WANDB-API-KEY2 was created in Azure KeyVault
-        os.environ["WANDB_API_KEY"] = secret_value
-
-    # Install aisa utils
-    try:
-        import aisa_utils
-    except ModuleNotFoundError:
-        aisa_utils_wheel_path = _find_module_wheel_path("aisa_utils")
-        subprocess.run(["pip", "install", f"{aisa_utils_wheel_path}"])
-
-
-def _get_data_yaml(dataset_location: Path) -> dict:
-    dataset_data_yaml_path = list(dataset_location.rglob("*data.yaml"))
-    if len(dataset_data_yaml_path) == 1:
-        dataset_data_yaml_path = dataset_data_yaml_path[0]
-        with dataset_data_yaml_path.open("r") as file:
-            data_yaml = yaml.load(file)
-    elif len(dataset_data_yaml_path) > 1:
-        raise Exception(
-            f"Multiple data.yaml files found at {dataset_location}: {dataset_data_yaml_path}"
-        )
-    else:
-        data_yaml = dict(
-            nc=1,
-            names=["Sperm"],
-        )
-
-    # Overwrite location keys to be able to launch from anywhere
-    data_yaml["path"] = str(dataset_data_yaml_path.parent.as_posix())
-    data_yaml["train"] = "images/train"
+        
     data_yaml["val"] = "images/val"
 
     return data_yaml
