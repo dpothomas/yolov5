@@ -202,7 +202,7 @@ def plot_predictions_and_labels(extra_stats, threshold):
             frame = cv2.imread(str(path), 1)
 
             # Draw targets that are missed or not
-            draw_targets(frame, labelsn.numpy(), np.logical_not(targets_not_matched.numpy()), np.ones(labels.shape[0]))
+            draw_targets(frame, labelsn.numpy(), np.logical_not(targets_not_matched), np.ones(labels.shape[0]))
             # Draw wrong and good preds that are above a certain threshold
             draw_targets(frame, predn[:, :4].numpy(), preds_matched.numpy(), preds_pos, rect=True)
 
