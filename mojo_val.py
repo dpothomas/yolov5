@@ -1,5 +1,8 @@
+from pathlib import Path
+import tempfile
 import numpy as np
 import torch
+import wandb
 from torchvision.ops import box_iou
 
 from utils.general import scale_coords, xywh2xyxy
@@ -34,14 +37,26 @@ def process_batch_with_missed_labels(detections, detections_pos, labels, iouv):
         matches = torch.Tensor(matches).to(iouv.device)
         matches_by_iou = matches[:, 2:3] >= iouv
         pred_matched[matches[:, 1].long()] = matches_by_iou
-        labels_matched = [l in matches[:, 0] for l in range(len(labels))] # iou = 0.5
+        labels_matched = torch.Tensor([l in matches[:, 0] for l in range(len(labels))]) # iou = 0.5
     return pred_matched, labels_matched
 
 
 def plot_object_count_difference_ridgeline_from_extra(extra_stats):
     ground_truths_extra = [[1] * len(e[2]) for e in extra_stats]
-    preds_extra = [e[1].numpy() for e in extra_stats]
+    preds_extra = [e[1] for e in extra_stats]
     return plot_object_count_difference_ridgeline(ground_truths_extra, preds_extra)
+
+
+def log_plot_as_wandb_artifact(wand_run, fig, fig_name, temp_dir=Path(tempfile.NamedTemporaryFile().name)):
+    temp_dir.mkdir(exist_ok=True)
+    fig_name = f"{fig_name}.html"
+    filepath = temp_dir / fig_name
+    fig.write_html(open(filepath, "w"))
+    artifact = wandb.Artifact("run_" + wand_run.id + fig_name, type='result')
+    # Add a file to the artifact's contents
+    artifact.add_file(filepath)
+    # Save the artifact version to W&B and mark it as the output of this run
+    wand_run.log_artifact(artifact)
 
 
 def error_count_from_extra(extra_stats):
@@ -49,7 +64,7 @@ def error_count_from_extra(extra_stats):
     for si, extra_stat in enumerate(extra_stats):
         labels = extra_stat[2]
         nl = len(labels)
-        pred_conf = extra_stat[1][:, 4].numpy()
+        pred_conf = extra_stat[1][:, 4]
         extra_metrics[0] += np.abs(nl - len(np.where(pred_conf >= 0.3)[0]))
         extra_metrics[1] += np.abs(nl - len(np.where(pred_conf >= 0.5)[0]))
     extra_metrics = [v / len(extra_stats) for v in extra_metrics]
@@ -92,10 +107,10 @@ def compute_predictions_and_labels(extra_stats, *, threshold):
         preds_matched = preds_matched[:, 0] # iou = 0.5
         # preds_matched = np.logical_and(preds_matched, predn[:, 4] > threshold)
 
-        predn_all.append(predn)
-        preds_matched_all.append(preds_matched)
-        labelsn_all.append(labelsn)
-        labels_matched_all.append(labels_matched)
+        predn_all.append(predn.numpy())
+        preds_matched_all.append(preds_matched.numpy())
+        labelsn_all.append(labelsn.numpy())
+        labels_matched_all.append(labels_matched.numpy())
     images_paths = [e[0] for e in extra_stats]
 
     return predn_all, preds_matched_all, labelsn_all, labels_matched_all, images_paths
