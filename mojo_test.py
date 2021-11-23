@@ -16,8 +16,7 @@ from aisa_utils.dl_utils.utils import (
 )
 from utils.general import xyxy2xywhn, scale_coords
 from mojo_val import compute_predictions_and_labels, log_plot_as_wandb_artifact
-from aisa_utils.dl_utils.plots import plot_predictions_and_labels_crops, compute_predictions_and_labels_false_pos, \
-    plot_debug_frames
+from aisa_utils.dl_utils.plots import plot_predictions_and_labels_crops, compute_predictions_and_labels_false_pos, plot_dynamic_and_static_preds
 
 FILE = Path(__file__).absolute()
 sys.path.append(FILE.parents[0].as_posix())  # add yolov5/ to path
@@ -183,14 +182,22 @@ def mojo_test(
 
     # Extract prediction & labels match from validation extra stats
     predn, preds_matched, labelsn, labels_matched, images_paths = compute_predictions_and_labels(
-        extra_stats, threshold=suggested_threshold
+        extra_stats,
+        threshold=suggested_threshold
     )
 
-    # Draw image with preds and labels with different color depending on the matches
-    artifacts_plots = plot_debug_frames(
-        predn, preds_matched, labelsn, labels_matched, images_paths, threshold=suggested_threshold,
-        n_images=3
+    static_plotly_dict, dynamic_wandb_list = plot_dynamic_and_static_preds(
+        predn,
+        preds_matched,
+        labelsn,
+        labels_matched,
+        images_paths,
+        threshold=suggested_threshold,
+        names={k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
     )
+    artifacts_plots.update(static_plotly_dict)
+    for plot_idx, plot in enumerate(dynamic_wandb_list):
+        workspace_plots[f"Targets and predictions (static c={suggested_threshold:.2f})/{images_paths[plot_idx].name}"] = [plot]
 
     # Compute TP, TN, FP, FN and draw crops of lowest and confidence threshold preds
     true_pos, true_neg, false_pos, false_neg = compute_predictions_and_labels_false_pos(
