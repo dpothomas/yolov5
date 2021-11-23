@@ -1,5 +1,4 @@
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -8,7 +7,7 @@ import tqdm
 import wandb
 import numpy as np
 import torch
-import plotly.express as px
+
 from aisa_utils.dl_utils.utils import (
     plot_object_count_difference_ridgeline,
     make_video_results,
