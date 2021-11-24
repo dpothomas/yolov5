@@ -196,7 +196,7 @@ def mojo_test(
     )
     artifacts_plots.update(static_plotly_dict)
     for plot_idx, plot in enumerate(dynamic_wandb_list):
-        workspace_plots[f"Targets and predictions (static c={suggested_threshold:.2f})/{images_paths[plot_idx].name}"] = [plot]
+        workspace_plots[f"Targets and predictions/{images_paths[plot_idx].name}"] = [plot]
 
     # Compute TP, TN, FP, FN and draw crops of lowest and confidence threshold preds
     true_pos, true_neg, false_pos, false_neg = compute_predictions_and_labels_false_pos(
