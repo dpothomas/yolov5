@@ -99,13 +99,12 @@ def compute_predictions_and_labels(extra_stats, *, threshold):
             scale_coords(img1_shape, tbox, img0_shape, ratio_pad)  # native-space labels
             labelsn = torch.cat((labels[:, 0:1], tbox), 1)  # native-space labels
             preds_matched, labels_matched = process_batch_with_missed_labels(predn, predn[predn[:, 4] > threshold], labelsn, iouv)
+            labelsn = labelsn[:, 1:]
         else:
-            preds_matched, labels_matched = torch.zeros(predn.shape[0], niou, dtype=torch.bool), torch.zeros(labelsn.shape[0], dtype=torch.bool)
+            labelsn = torch.zeros(0, 4)
+            preds_matched, labels_matched = torch.zeros(predn.shape[0], niou, dtype=torch.bool), torch.zeros(0, dtype=torch.bool)
 
-        labelsn = labelsn[:, 1:]
-        # Get pos, negn matched and non matched to compute and show FP/FN/TP/TN
-        preds_matched = preds_matched[:, 0] # iou = 0.5
-        # preds_matched = np.logical_and(preds_matched, predn[:, 4] > threshold)
+        preds_matched = preds_matched[:, 0]
 
         predn_all.append(predn.numpy())
         preds_matched_all.append(preds_matched.numpy())
