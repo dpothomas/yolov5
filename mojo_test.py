@@ -7,15 +7,20 @@ import tqdm
 import wandb
 import numpy as np
 import torch
+from utils.general import xyxy2xywhn, scale_coords
 
+from aisa_utils.dl_utils.plots import (
+    plot_predictions_and_labels_crops,
+    compute_predictions_and_labels_false_pos,
+    plot_dynamic_and_static_preds
+)
 from aisa_utils.dl_utils.utils import (
     plot_object_count_difference_ridgeline,
     make_video_results,
     plot_object_count_difference_line,
 )
-from utils.general import xyxy2xywhn, scale_coords
+
 from mojo_val import compute_predictions_and_labels, log_plot_as_wandb_artifact
-from aisa_utils.dl_utils.plots import plot_predictions_and_labels_crops, compute_predictions_and_labels_false_pos, plot_dynamic_and_static_preds
 
 FILE = Path(__file__).absolute()
 sys.path.append(FILE.parents[0].as_posix())  # add yolov5/ to path
@@ -35,7 +40,9 @@ import val
 
 
 def get_images_and_labels(data):
-    image_paths = list(Path(data).glob("*.jpg")) + list(Path(data).glob("*.png"))
+    data = Path(data)
+    assert data.exists()
+    image_paths = list(data.glob("*.jpg")) + list(data.glob("*.png"))
     images = []
     labels = []
     for image_path in image_paths:
@@ -70,8 +77,8 @@ def mojo_test(
     save_txt=False,  # save results to *.txt
     project="runs/val",  # save to project/name
     name="exp",  # save to project/name
+    wandb_run=None,
     exist_ok=False,  # existing project/name ok, do not increment
-    entity=None,
     test_video_root=None,
 ):
 
@@ -87,11 +94,6 @@ def mojo_test(
     (save_dir / "labels" if save_txt else save_dir).mkdir(
         parents=True, exist_ok=True
     )  # make dir
-    run_id = torch.load(weights[0]).get("wandb_id")
-
-    wandb_run = wandb.init(
-        id=run_id, project=project, entity=entity, resume="allow", allow_val_change=True,
-    )
 
     results, maps, t, extra_stats = val.run(
         data,
@@ -120,7 +122,7 @@ def mojo_test(
     if half:
         model.half()
 
-    def video_prediction_function(
+    def predict_images(
         frame_array, iou_thres_nms=0.45, conf_thres_nms=0.001
     ):
         n_frames = len(frame_array)
@@ -170,7 +172,7 @@ def mojo_test(
 
     preds_iou_thres = dict()
     for iout in [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65]:
-        preds_iou_thres[iout] = video_prediction_function(images, iou_thres_nms=iout)
+        preds_iou_thres[iout] = predict_images(images, iou_thres_nms=iout)
     fig_line = plot_object_count_difference_line(labels, preds_iou_thres)
 
     fig, suggested_threshold = plot_object_count_difference_ridgeline(labels, preds_iou_thres[0.45])
@@ -215,7 +217,7 @@ def mojo_test(
     if test_video_root is not None:
         for video_path in Path(test_video_root).rglob("*.avi"):
             output_video_path, jitter_plot = make_video_results(
-                video_path, lambda x: video_prediction_function(x, suggested_threshold)
+                video_path, lambda x: predict_images(x, suggested_threshold)
             )
 
             wandb_run.log(
@@ -228,7 +230,7 @@ def mojo_test(
             wandb_run.log(
                 {f"mojo_test/workspace_plots/{output_video_path.name}_jitter": jitter_plot}
             )
-
+    wandb_run.finish()
     return None
 
 

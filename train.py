@@ -26,7 +26,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import Adam, SGD, lr_scheduler
 from tqdm import tqdm
 
-from mojo_val import plot_object_count_difference_ridgeline_from_extra, error_count_from_extra
+from mojo_val import error_count_from_extra
 
 FILE = Path(__file__).absolute()
 sys.path.append(FILE.parents[0].as_posix())  # add yolov5/ to path
@@ -358,7 +358,6 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                                            save_json=is_coco and final_epoch,
                                            verbose=nc < 50 and final_epoch,
                                            plots=plots and final_epoch,
-                                           callbacks=callbacks,
                                            compute_loss=compute_loss,
             )
 
